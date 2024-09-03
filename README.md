@@ -1,6 +1,6 @@
 # Testing SPDM over DOE on an Emulated NVME device with QEMU
 
-***Tested as of: [22/2/24]***
+***Tested as of: [3/9/24]***
 
 This guide will walkthrough setting up a basic linux image, emulating an
 NVMe device (PCIe) and testing SPDM over DOE all using QEMU. With everything setup,
@@ -33,7 +33,7 @@ $ git clone https://github.com/torvalds/linux.git
 # OR Linux Kernel with SPDM Requester Support (In development)
 $ git clone https://github.com/l1k/linux.git
 # We are using a fork of QEMU, but SPDM over DOE patches will be upstreamed soon
-$ git clone https://github.com/twilfredo/qemu.git
+$ git clone https://github.com/qemu/qemu
 # Pick one of the below tools
 # spdm-utils -> libspdm Rust based responder/requestor
 $ git clone --recursive https://github.com/westerndigitalcorporation/spdm-utils.git
@@ -58,7 +58,7 @@ $ make kvm_guest.config
 When building the kernel with SPDM support
 ```shell
 $ cd linux
-$ git checkout lukas/doe
+$ git checkout spdm-future
 $ make defconfig
 # Setup .config for QEMU
 $ make kvm_guest.config 
@@ -94,8 +94,6 @@ Now to build QEMU, from the `qemu-spdm` top directory
 
 ```shell
 $ cd qemu
-# Checkout the SPDM NVME Device support branch
-$ git checkout wilfred/spdm-a
 $ mkdir build; cd build
 # We are using SLIRP for networking (you will need libslirp-devel installed)
 $ ../configure --target-list=x86_64-softmmu --enable-slirp 
@@ -224,7 +222,7 @@ echo "Starting QEMU..."
         -append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0 nokaslr" \
         -drive file=$2/bookworm.img,format=raw \
 	-drive file=$2/blknvme,if=none,id=mynvme,format=raw \
-	-device nvme,drive=mynvme,serial=deadbeef,spdm=2323 \
+	-device nvme,drive=mynvme,serial=deadbeef,spdm_port=2323 \
 	-net user,host=10.0.2.10,hostfwd=tcp:127.0.0.1:10021-:22 \
         -net nic,model=e1000 \
         -enable-kvm \
@@ -236,7 +234,7 @@ echo "Starting QEMU..."
 
 To summarise, we are virtualizing a `q35` machine (this is the only `x86-64`
 machine type to support PCIe). The machine emulates an NVMe controller that
-points `blknvme` (file we made) for it's namespace storage. The `spdm=2323`
+points `blknvme` (file we made) for it's namespace storage. The `spdm_port=2323`
 option to the NVMe device tells us on which port to look for `spdm-responder`.
 `spdm-emu` and `spdm-utils` both currently use port `2323`.
 
@@ -345,7 +343,7 @@ We can now attempt to re-authenticate with, ensure that you have the correct
 path to the NVMe PCI device (`0000:00:03.0` in this case).
 
 ```shell
-echo 1 > /sys/devices/pci0000\:00/0000\:00\:03.0/authenticated
+echo re > /sys/devices/pci0000\:00/0000\:00\:03.0/authenticated
 ```
 
 This will start the authentication process.
